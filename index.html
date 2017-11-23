@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet"> 
+
+    <title>Large number of points</title>
+
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <style>
+      svg {
+        border: 1px solid #666666;
+      }
+      #controls {
+        position: absolute;
+        top: 320px;
+        left: 10px;
+        right: 10px;
+        height: 130px;
+        font-family: "Open Sans";
+        font-size: 14px;
+      }
+      td {
+        text-align: center;
+      }
+      .entry {
+        width: 150px;
+        text-align: center;
+        padding: 3px 0px 3px 0px;
+        font-weight: bold;
+      }
+    </style>
+    <script>
+      var points = [];
+      var margin = {};
+      var xLinear;
+      var yLinear;
+      var quantLo;
+      var quantHi;
+      var colorLo;
+      var colorCore;
+      var colorHi;
+      var radiusLo;
+      var radiusCore;
+      var radiusHi;
+      var yLo;
+      var yHi;
+      Math.nrand = function() {
+        var x1, x2, rad, y1;
+        do {
+          x1 = 2 * this.random() - 1;
+          x2 = 2 * this.random() - 1;
+          rad = x1 * x1 + x2 * x2;
+        } while (rad >= 1 || rad == 0);
+        var c = this.sqrt(-2 * Math.log(rad) / rad);
+        return ( x1 * c ) + 50;
+      }
+      document.addEventListener("DOMContentLoaded", function() {
+        // Generate points
+        generatePoints();
+        // Data needs to be sorted before we can calculate quantile values
+        points.sort(function(a,b) {
+          return parseFloat(a[1]) - parseFloat(b[1]);
+        });
+        // Setup margin values for charts
+        margin.width = 960;
+        margin.height = 300;
+        margin.paddingLeft = 1;
+        margin.paddingRight = 1;
+        margin.paddingTop = 1;
+        margin.paddingBottom = 1;
+        recalculate();
+      });
+      function recalculate() {
+        quantLo = parseFloat(document.getElementById("qLo").textContent) / 100;
+        quantHi = parseFloat(document.getElementById("qHi").textContent) / 100;
+        colorLo = document.getElementById("cLo").textContent;
+        colorCore = document.getElementById("cCore").textContent;
+        colorHi = document.getElementById("cHi").textContent;
+        radiusLo = parseFloat(document.getElementById("rLo").textContent);
+        radiusCore = parseFloat(document.getElementById("rCore").textContent);
+        radiusHi = parseFloat(document.getElementById("rHi").textContent);
+        yLo = parseFloat(document.getElementById("yLo").textContent);
+        yHi = parseFloat(document.getElementById("yHi").textContent);
+        createScales();
+        render();
+      }
+      function generatePoints() {
+        for (var i = 0; i < 50000; i++) {
+          points.push([(i % 10000),Math.nrand()]);
+        }
+      }
+      function createScales() {
+        // Setup scales
+        xLinear = d3.scaleLinear()
+          .domain([0, 10000])
+          .range([ margin.paddingLeft, ( margin.width - margin.paddingRight)])
+          .nice();
+        yLinear = d3.scaleLinear()
+          .domain([yLo,yHi])
+          .range([(margin.height - margin.paddingBottom), margin.paddingTop])
+          .nice();
+      }
+      function render() {
+        var qlo = d3.quantile(points, quantLo, function(d) { return parseFloat(d[1]); });
+        var qhi = d3.quantile(points, quantHi, function(d) { return parseFloat(d[1]); });
+        
+        var scatter = d3.select("svg")
+          .selectAll("circle")
+          .data(points);
+        scatter
+          .exit()
+            .remove();
+        scatter
+          .enter()
+          .append("circle")
+          .merge(scatter)
+          .transition()
+            .attr("cx", function (d) { return xLinear(d[0]); })
+            .attr("cy", function (d) { return yLinear(d[1]); })
+            .attr("fill", function (d) { 
+              if (qlo >= d[1]) {
+                return colorLo;
+              } else if (qhi <= d[1]) {
+                return colorHi;
+              }
+              return colorCore;
+            })
+            .attr("r", function (d) {
+              if (qlo >= d[1]) {
+                return radiusLo;
+              } else if (qhi <= d[1]) {
+                return radiusHi;
+              }
+              return radiusCore;
+            });
+      }
+    </script>
+  </head>
+  <body>
+    <svg width="960" height="300"></svg>
+    <div id="controls">
+      <table>
+        <tr>
+          <td></td>
+          <td>Low</td>
+          <td>Core</td>
+          <td>High</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Quantile</td>
+          <td><div class="entry" id="qLo" contenteditable="true">25.0</div></td>
+          <td></td>
+          <td><div class="entry" id="qHi" contenteditable="true">75.0</div></td>
+        </tr>
+        <tr>
+          <td>Color</td>
+          <td><div class="entry" id="cLo" contenteditable="true">rgba( 255, 0, 0, 1.0 )</div></td>
+          <td><div class="entry" id="cCore" contenteditable="true">rgba( 0, 0, 255, 0.1 )</div></td>
+          <td><div class="entry" id="cHi" contenteditable="true">rgba( 255, 0, 0, 1.0 )</div></td>
+        </tr>
+        <tr>
+          <td>Radius</td>
+          <td><div class="entry" id="rLo" contenteditable="true">1</div></td>
+          <td><div class="entry" id="rCore" contenteditable="true">1</div></td>
+          <td><div class="entry" id="rHi" contenteditable="true">1</div></td>
+        </tr>
+        <tr>
+          <td>Y Range (from-to)</td>
+          <td><div class="entry" id="yLo" contenteditable="true">45</div></td>
+          <td><div class="entry" id="yHi" contenteditable="true">55</div></td>
+          <td></td>
+        </tr>
+      </table>
+      <button onclick="recalculate()">Refresh</button>
+    </div>
+  </body>
+</html>
